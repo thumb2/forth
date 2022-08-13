@@ -13,7 +13,6 @@ typedef void(* func_type)();
 func_type func_arr[4096 * 1024];     //
 func_type* here = func_arr;          // HERE in forth language
 func_type* pc;                       // Program Counter
-func_type* nx;                       // Next PC
 func_type* lr;                       // Link Register
 
 
@@ -40,14 +39,12 @@ bool is_compiling = false;
 void ret()
 {
     pc = lr;
-    nx = lr;
 }
 
 void print_info(string func_name)
 {
     cout << setw(20) << left << func_name;
     cout << ": pc: " << setw(8) << (void *)(pc - func_arr);
-    cout << ", nx: " << setw(8) << (void *)(nx - func_arr);
     cout << ", lr: " << setw(8) << (void *)(lr - func_arr);
     cout << ", hr: " << setw(8) << (void *)(here - func_arr)  << endl;
 }
@@ -68,7 +65,7 @@ void dot_func()
     if (debug) print_info("dot_func");
     int a = (long int)data_stack.top();
     data_stack.pop();
-    cout << a << endl;
+    cout << dec << a << endl;
     ret();
 }
 
@@ -86,16 +83,13 @@ void interpreter();
 void jump_and_link()
 {
     lr = pc + 1;
-    pc = nx;
+    pc = (func_type*)(*pc);
+    if (debug) print_info("jump_and_link");
 }
-
-
 void do_colon()
 {
     if (debug) print_info("do_colon");
     call_stack.push((void *)lr);
-    pc++;
-    nx = pc;
 }
 
 void colon_func()
@@ -141,13 +135,14 @@ void interpreter()
         if (debug) {
             cout << "compiling: " << input_word << endl;
         }
-        *here++ = *(word->func_);
+        *here++ = jump_and_link;
+        *here++ = (func_type)(word->func_);
     } else {
         if (debug) {
             cout << "executing: " << input_word << endl;
         }
         if (is_word_found) {
-            nx = word->func_;
+            pc = word->func_;
             return;
         } else {
             if (is_number(input_word)) {
@@ -163,7 +158,7 @@ void interpreter()
 
 void loop_interpreter()
 {
-    nx = func_arr;
+    pc = func_arr;
 }
 
 void setup()
@@ -171,7 +166,6 @@ void setup()
     here = func_arr;
     *here++ = interpreter;
     *here++ = loop_interpreter;
-    nx = func_arr;
     pc = func_arr;
     lr = func_arr;
 }
@@ -179,10 +173,8 @@ void setup()
 void main_loop()
 {
     while(true) {
-        if (debug) print_info("before jump and link");
-        jump_and_link();
-        if (debug) print_info("after  jump and link");
-        (*pc)();
+        if (debug) print_info("main loop");
+        (*pc++)();
     }
 }
 
