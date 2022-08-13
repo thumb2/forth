@@ -77,7 +77,6 @@ bool is_number(const string &str)
     return true;
 }
 
-
 void interpreter();
 
 void jump_and_link()
@@ -116,20 +115,23 @@ void semicolon_func()
     ret();
 }
 
+void do_lit()
+{
+    data_stack.push((void *)(long int)(*pc));
+    pc++;
+}
+
 void interpreter()
 {
     bool is_word_found = false;
     Word* word;
-
     cin >> input_word;
     for (auto &w: dict){
-        //cout << input_word << " vs " << w.name_ << endl;
         if (input_word.compare(w.name_) == 0) {
             is_word_found = true;
             word = &w;
         }
     }
-
     lr = func_arr;
     if (is_compiling && (is_word_found && !(word->is_immediate_))) {
         if (debug) {
@@ -137,6 +139,13 @@ void interpreter()
         }
         *here++ = jump_and_link;
         *here++ = (func_type)(word->func_);
+    } else if (is_compiling && !is_word_found) {
+        if (is_number(input_word)) {
+            *here++ = do_lit;
+            *here++ = (func_type)(long int)atoi(input_word.c_str());
+        } else {
+            cout << input_word << " not found." << endl;
+        }
     } else {
         if (debug) {
             cout << "executing: " << input_word << endl;
