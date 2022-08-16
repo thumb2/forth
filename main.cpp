@@ -43,27 +43,40 @@ void ret()
 
 void print_info(string func_name)
 {
-    cout << setw(20) << left << func_name;
-    cout << ": pc: " << setw(8) << (void *)(pc - func_arr);
-    cout << ", lr: " << setw(8) << (void *)(lr - func_arr);
-    cout << ", hr: " << setw(8) << (void *)(here - func_arr)  << endl;
+    if (debug) {
+        cout << setw(20) << left << func_name;
+        cout << ": pc: " << setw(8) << (void *)(pc - func_arr);
+        cout << ", lr: " << setw(8) << (void *)(lr - func_arr);
+        cout << ", hr: " << setw(8) << (void *)(here - func_arr)  << endl;
+    }
 }
 
 void plus_func()
 {
-    if (debug) print_info("do_plus");
-
-    int a = (long int)(data_stack.top());
+    print_info(__FUNCTION__);
+    long int a = (long int)(data_stack.top());
     data_stack.pop();
-    int b = (long int)(data_stack.top());
+    long int b = (long int)(data_stack.top());
     data_stack.pop();
     data_stack.push((void *)(long int)(a + b));
     ret();
 }
+
+void minus_func()
+{
+    print_info(__FUNCTION__);
+    long int a = (long int)(data_stack.top());
+    data_stack.pop();
+    long int b = (long int)(data_stack.top());
+    data_stack.pop();
+    data_stack.push((void *)(long int)(b - a));
+    ret();
+}
+
 void dot_func()
 {
-    if (debug) print_info("dot_func");
-    int a = (long int)data_stack.top();
+    print_info(__FUNCTION__);
+    long int a = (long int)data_stack.top();
     data_stack.pop();
     cout << dec << a << endl;
     ret();
@@ -81,13 +94,13 @@ void interpreter();
 
 void jump_and_link()
 {
+    print_info(__FUNCTION__);
     lr = pc + 1;
     pc = (func_type*)(*pc);
-    if (debug) print_info("jump_and_link");
 }
 void do_colon()
 {
-    if (debug) print_info("do_colon");
+    print_info(__FUNCTION__);
     call_stack.push((void *)lr);
 }
 
@@ -102,7 +115,7 @@ void colon_func()
 }
 void do_semicolon()
 {
-    if (debug) print_info("do_semicolon");
+    print_info(__FUNCTION__);
     lr = (func_type *)call_stack.top();
     call_stack.pop();
     ret();
@@ -117,8 +130,47 @@ void semicolon_func()
 
 void do_lit()
 {
+    print_info(__FUNCTION__);
     data_stack.push((void *)(long int)(*pc));
     pc++;
+}
+
+void branch_func()
+{
+    pc = (func_type*)(*pc);
+}
+
+void zero_branch_func()
+{
+    int top = (long int)(data_stack.top());
+    data_stack.pop();
+    pc = top == 0 ? (func_type*)(*pc) : pc + 1;
+}
+
+void here_func()
+{
+    data_stack.push((void *)(long int)(here));
+    ret();
+}
+
+void fetch_func()
+{
+    print_info(__FUNCTION__);
+    long int top = (long int)(data_stack.top());
+    data_stack.pop();
+    data_stack.push((void*)(*((long int *)(top))));
+    ret();
+}
+
+void store_func()
+{
+    print_info(__FUNCTION__);
+    long int* address = (long int *)(data_stack.top());
+    data_stack.pop();
+    long int value  = (long int)(data_stack.top());
+    data_stack.pop();
+    *address = value;
+    ret();
 }
 
 void interpreter()
@@ -182,7 +234,7 @@ void setup()
 void main_loop()
 {
     while(true) {
-        if (debug) print_info("main loop");
+        print_info("main loop");
         (*pc++)();
     }
 }
@@ -198,8 +250,15 @@ int main()
 {
     setup();
     def_word("+", plus_func);
+    def_word("-", minus_func);
     def_word(".", dot_func);
     def_word(":", colon_func);
     def_word(";", semicolon_func, true);
+    def_word("branch", branch_func);
+    def_word("0branch", zero_branch_func);
+    def_word("here", here_func);
+    def_word("@", fetch_func);
+    def_word("!", store_func);
+
     main_loop();
 }
